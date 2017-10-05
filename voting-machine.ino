@@ -1,16 +1,24 @@
+#include <Pushbutton.h>
+
 #define LED           9 // Moteinos have LEDs on D9
+#define GREEN_PIN     4
+#define YELLOW_PIN    5
+#define RED_PIN       6
 #define SERIAL_BAUD   115200
 
 const unsigned long blinkIntervalMillis = 3000;
 unsigned long lastBlinkTime = 0;
 
-volatile long redCounter = 0, greenCounter = 0, yellowCounter = 0;
+long greenCounter = 0, yellowCounter = 0, redCounter = 0;
+Pushbutton green(GREEN_PIN), yellow(YELLOW_PIN), red(RED_PIN);
 
 void Blink(byte pin, int durationMillis);
 void blinkPeriodically();
 void indicateActivity();
 void handleInput();
 void reset();
+bool checkButtons();
+void sendCounters();
 
 void setup() {
   Serial.begin(SERIAL_BAUD);
@@ -21,6 +29,9 @@ void setup() {
 void loop() {
   blinkPeriodically();
   handleInput();
+  if (checkButtons()) {
+    sendCounters();
+  }
 }
 
 void handleInput() {
@@ -69,5 +80,32 @@ void blinkPeriodically() {
 
 void indicateActivity() {
   Blink(200); delay(200); Blink(200); delay(200); Blink(200);
+}
+
+bool checkButtons() {
+  bool changed = false;
+  if (green.getSingleDebouncedPress()) {
+    greenCounter++;
+    changed = true;
+  }
+  if (yellow.getSingleDebouncedPress()) {
+    yellowCounter++;
+    changed = true;
+  }
+  if (red.getSingleDebouncedPress()) {
+    redCounter++;
+    changed = true;
+  }
+  return changed;
+}
+
+void sendCounters() {
+  Serial.print(greenCounter);
+  Serial.print(',');
+  Serial.print(yellowCounter);
+  Serial.print(',');
+  Serial.print(redCounter);
+  Serial.print(',');
+  Serial.println();
 }
 
