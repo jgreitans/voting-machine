@@ -1,4 +1,5 @@
 #include "ESP8266WiFi.h"
+#include "wifi-password.h"
 
 #define LED_PIN 2   // LoLin has LED at GPIO2 (D0)
 
@@ -14,6 +15,33 @@ void ledOff() {
   digitalWrite(LED_PIN, 1);
 }
 
+bool ensureConnection() {
+  if (isConnected()) {
+    return true;
+  }
+  ledOn();
+  Serial.println();
+  Serial.print("Connecting to WiFi...");
+  WiFi.begin(ssid, password);
+  for (int i = 0; i < 100 && !isConnected(); i++) {
+    delay(100);
+    Serial.print('.');
+  }
+  if (!isConnected()) {
+    Serial.println(" FAILED.");
+    ledOff();
+    return false;
+  }
+  Serial.print(' ');
+  Serial.println(WiFi.localIP());
+  ledOff();
+  return true;
+}
+
+bool isConnected() {
+  return WiFi.status() == WL_CONNECTED;
+}
+
 
 void setup() {
   Serial.begin(115200);
@@ -22,36 +50,12 @@ void setup() {
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   delay(2000);
-  Serial.println("Setup done");
+
+  ensureConnection();
 }
 
 void loop() {
-  Serial.println("scan start");
-  ledOn();
-  int n = WiFi.scanNetworks();// WiFi.scanNetworks will return the number of networks found
-  ledOff();
-  Serial.println("scan done");
-  if (n == 0) {
-    Serial.println("no networks found");
-  } else
-  {
-    Serial.print(n);
-    Serial.println(" networks found");
-    for (int i = 0; i < n; ++i)
-    {
-      // Print SSID and RSSI for each network found
-      Serial.print(i + 1);
-      Serial.print(": ");
-      Serial.print(WiFi.SSID(i));
-      Serial.print(" (");
-      Serial.print(WiFi.RSSI(i));
-      Serial.print(")");
-      Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE)?" ":"*");
-      delay(10);
-    }
-  }
-  Serial.println("");
-
+  ensureConnection();
   // Wait a bit before scanning again
-  delay(5000);
+  delay(1000);
 }
