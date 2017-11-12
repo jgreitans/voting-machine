@@ -1,16 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Builder;
+﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using webapp.Locations.Interfaces;
 using webapp.Locations.Services;
 using webapp.Locations.Repositories;
+using webapp.Votes.Interfaces;
+using webapp.Votes.Services;
+using webapp.Votes.Repositories;
 
 namespace webapp
 {
@@ -28,6 +25,8 @@ namespace webapp
             services.AddMvc();
             services.AddScoped<ILocationService, LocationService>();
             services.AddScoped<ILocationRepository, SqliteLocationRepository>();
+            services.AddScoped<IVoteService, VoteService>();
+            services.AddScoped<IVoteRepository, SqliteVoteRepository>();
         }
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)

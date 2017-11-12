@@ -12,38 +12,21 @@ namespace webapp.Locations.Repositories
     {
         public async Task<IEnumerable<LocationModel>> GetAllLocations()
         {
-            using (var conn = await SqliteDatabase.GetConnection())
+            using (var conn = SqliteDatabase.GetConnection())
             {
                 return await conn.QueryAsync<LocationModel>(@"SELECT * FROM Locations");
             }
-            return await Task.FromResult<IEnumerable<LocationModel>>(
-                new List<LocationModel>
-                {
-                    new LocationModel
-                    {
-                        Id = "c0800c22-d8ab-4732-aef0-2684e2b7f6e0",
-                        Name = "Room 1"
-                    },
-                    new LocationModel
-                    {
-                        Id = "b149ba4c-a750-42e8-811d-e299cf9081b5",
-                        Name = "Room 2"
-                    }
-                });
         }
 
-        public async Task<LocationModel> AddLocation(LocationAddModel model)
+        public async Task AddLocation(LocationAddModel model)
         {
-            using (var conn = await SqliteDatabase.GetConnection())
+            using (var conn = SqliteDatabase.GetConnection())
             {
                 var id = Guid.NewGuid().ToString();
-                await conn.ExecuteAsync(@"INSERT INTO Locations(Id, Name) VALUES(@Id, @Name)",
+                await conn.ExecuteAsync(@"INSERT INTO Locations(Name) VALUES(@Name)",
                     new {
-                        Id = id,
                         Name = model.Name
                     });
-
-                return new LocationModel(id, model.Name);
             }
         }
     }

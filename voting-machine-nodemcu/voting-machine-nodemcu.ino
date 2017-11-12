@@ -13,6 +13,14 @@
 #define YELLOW_LED_PIN D6
 #define RED_LED_PIN D5
 
+const uint8 VOTE_GREEN = 0;
+const uint8 VOTE_YELLOW = 1;
+const uint8 VOTE_RED = 2;
+
+
+const char* targetHost = "192.168.1.100";
+const int port = 65367;
+const char* apiKey = "3db17c25b53248a2be53adafd98763b6";
 
 // Seconds since Jan 1, 1970 at the moment when this board was booted.
 unsigned long boot_time = 0;
@@ -63,9 +71,8 @@ void setup() {
 
 void loop() {
   handleInput();
-  if (checkButtons()) {
-    sendCounters();
-  }
+  checkButtons();
+  sendCounters();
   // Wait a bit before scanning again
   delay(10);
 }
@@ -192,19 +199,6 @@ bool checkButtons() {
   return changed;
 }
 
-void sendCounters() {
-  Serial.print("g = ");
-  Serial.print(greenCounter);
-  Serial.print(", y = ");
-  Serial.print(yellowCounter);
-  Serial.print(", r = ");
-  Serial.print(redCounter);
-  Serial.println();
-
-  ensureConnection();
-  
-}
-
 void reset() {
   redCounter = 0;
   greenCounter = 0;
@@ -244,5 +238,70 @@ void flashButtons() {
   digitalWrite(GREEN_LED_PIN, 0);
   digitalWrite(YELLOW_LED_PIN, 0);
   digitalWrite(RED_LED_PIN, 0);
+}
+
+
+bool sendVote(WiFiClient& client, const char* targetHost, uint8 color) {
+  String data = String("{\"value\": ") + color + "}";
+  client.print(String("POST /api/votes HTTP/1.1\r\n") +
+      "Host: " + targetHost + "\r\n" +
+      "Connection: close\r\n" +
+      "Authorization: Bearer " + apiKey + "\r\n" +
+      "Content-type: application/json\r\n" + 
+      "Content-length: " + data.length() + "\r\n" +
+      "\r\n" +
+      data
+  );
+
+  if (client.connected())
+  {
+    if (client.available())
+    {
+      String line = client.readStringUntil('\n');
+      int spacePos = line.indexOf(' ');
+      if (spacePos > 0 && spacePos <= (line.length() - 3)) {
+        // HTTP status code is one of 2xx
+        if (line[spacePos + 1] == '2') {
+          return true;
+        } else {
+          Serial.println(line);
+        }
+      }
+      return false;
+    }
+  }
+  return false;
+}
+
+void sendCounters() {
+  if (!greenCounter && !yellowCounter && !redCounter) return;
+
+  ensureConnection();
+
+  WiFiClient client;
+  if (client.connect(targetHost, port)) {
+    if (greenCounter > 0) {
+      if (sendVote(client, targetHost, VOTE_GREEN)) {
+        greenCounter--;
+        Serial.println("green");
+      }
+    }
+    if (yellowCounter > 0) {
+      if (sendVote(client, targetHost, VOTE_YELLOW)) {
+        yellowCounter--;
+        Serial.println("yellow");
+      }
+    }
+    if (redCounter > 0) {
+      if (sendVote(client, targetHost, VOTE_RED)) {
+        redCounter--;
+        Serial.println("red");
+      }
+    }
+  } else {
+    Serial.println("Could not connect to target host.");
+    delay(100);
+  }
+  client.stop();
 }
 

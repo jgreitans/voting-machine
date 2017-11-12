@@ -24,9 +24,9 @@ namespace webapp.Locations
         }
 
         [HttpPost]
-        public async Task<LocationModel> Add([FromBody]LocationAddModel model)
+        public async Task Add([FromBody]LocationAddModel model)
         {
-            return await _locationService.AddLocation(model);
+            await _locationService.AddLocation(model);
         }
         
         [HttpPut("{id}")]

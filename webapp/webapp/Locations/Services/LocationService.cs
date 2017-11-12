@@ -19,9 +19,9 @@ namespace webapp.Locations.Services
             return await _locationRepository.GetAllLocations();
         }
 
-        public async Task<LocationModel> AddLocation(LocationAddModel model)
+        public async Task AddLocation(LocationAddModel model)
         {
-            return await _locationRepository.AddLocation(model);
+            await _locationRepository.AddLocation(model);
         }
     }
 }

@@ -12,7 +12,7 @@ namespace webapp.Sqlite
         private static string DatabaseDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "voting-machine");
         private static string DatabaseFileName => Path.Combine(DatabaseDirectory, "voting-machine.sqlite");
 
-        public static async Task<DbConnection> GetConnection()
+        public static DbConnection GetConnection()
         {
             var builder = SqliteFactory.Instance.CreateConnectionStringBuilder() as SqliteConnectionStringBuilder;
             Directory.CreateDirectory(DatabaseDirectory);
@@ -21,21 +21,27 @@ namespace webapp.Sqlite
             builder.Mode = SqliteOpenMode.ReadWriteCreate;
             var conn = SqliteFactory.Instance.CreateConnection();
             conn.ConnectionString = builder.ConnectionString;
-            await conn.OpenAsync();
+            conn.Open();
             if (!exists)
             {
-                await SeedDatabase(conn);
+                SeedDatabase(conn);
             }
             return conn;
         }
 
-        private static async Task SeedDatabase(DbConnection conn)
+        private static void SeedDatabase(DbConnection conn)
         {
-            await conn.ExecuteAsync(
+            conn.Execute(
                 @"CREATE TABLE IF NOT EXISTS [Locations] (" +
-                    "Id NVARCHAR(32) NOT NULL PRIMARY KEY, " +
+                    "Id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                     "Name NVARCHAR(128) NOT NULL, " +
-                    "DateCreated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP" +
+                    "Ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP" +
+                ")");
+            conn.Execute(
+                @"CREATE TABLE IF NOT EXISTS [Votes] (" +
+                    "Id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "Value SMALLINT NOT NULL, " +
+                    "Ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP" +
                 ")");
         }
     }
