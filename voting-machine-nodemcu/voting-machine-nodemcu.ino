@@ -1,49 +1,76 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
+#include <Pushbutton.h>
 #include "wifi-password.h"
 
-#define LED_PIN 2   // LoLin has LED at GPIO2 (D0)
+#define LED_PIN D4   // LoLin has LED at GPIO2 (D4)
+
+#define GREEN_BUTTON_PIN D3
+#define YELLOW_BUTTON_PIN D1
+#define RED_BUTTON_PIN D2
+
+#define GREEN_LED_PIN D7
+#define YELLOW_LED_PIN D6
+#define RED_LED_PIN D5
+
 
 // Seconds since Jan 1, 1970 at the moment when this board was booted.
 unsigned long boot_time = 0;
+long greenCounter = 0, yellowCounter = 0, redCounter = 0;
+Pushbutton green(GREEN_BUTTON_PIN, PULL_UP_DISABLED), yellow(YELLOW_BUTTON_PIN), red(RED_BUTTON_PIN);
 
-void initLed();
 void initTime();
 void ledOn();
 void ledOff();
 bool ensureConnection();
 bool isConnected();
 unsigned long sendNTPpacket(WiFiUDP& udp, IPAddress& address);
+bool checkButtons();
+void sendCounters();
+void reset();
+void handleInput();
 
 
 void setup() {
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(GREEN_LED_PIN, OUTPUT);
+  pinMode(YELLOW_LED_PIN, OUTPUT);
+  pinMode(RED_LED_PIN, OUTPUT);
   Serial.begin(115200);
-  initLed();
+
+  digitalWrite(GREEN_LED_PIN, 1);
+  delay(500);
+  digitalWrite(YELLOW_LED_PIN, 1);
+  delay(500);
+  digitalWrite(RED_LED_PIN, 1);
+
   // Set WiFi to station mode and disconnect from an AP if it was previously connected
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   while(isConnected()) {
     delay(100);
   }
-
   while (!ensureConnection()) {
     delay(1000);
   }
 
   initTime();
+
+  digitalWrite(GREEN_LED_PIN, 0);
+  digitalWrite(YELLOW_LED_PIN, 0);
+  digitalWrite(RED_LED_PIN, 0);
 }
 
 void loop() {
-  ensureConnection();
+  handleInput();
+  if (checkButtons()) {
+    sendCounters();
+  }
   // Wait a bit before scanning again
-  delay(1000);
+  delay(10);
 }
 
 
-
-void initLed() {
-  pinMode(LED_PIN, OUTPUT);
-}
 
 void ledOn() {
   digitalWrite(LED_PIN, 0);
@@ -138,5 +165,84 @@ unsigned long sendNTPpacket(WiFiUDP& udp, IPAddress& address)
   udp.beginPacket(address, 123); //NTP requests are to port 123
   udp.write(packetBuffer, NTP_PACKET_SIZE);
   udp.endPacket();
+}
+
+bool checkButtons() {
+  bool changed = false;
+  if (green.getSingleDebouncedPress()) {
+    greenCounter++;
+    changed = true;
+    digitalWrite(GREEN_LED_PIN, 1);
+  }
+  if (yellow.getSingleDebouncedPress()) {
+    yellowCounter++;
+    changed = true;
+    digitalWrite(YELLOW_LED_PIN, 1);
+  }
+  if (red.getSingleDebouncedPress()) {
+    redCounter++;
+    changed = true;
+    digitalWrite(RED_LED_PIN, 1);
+  }
+
+  if (green.getSingleDebouncedRelease()) digitalWrite(GREEN_LED_PIN, 0);
+  if (yellow.getSingleDebouncedRelease()) digitalWrite(YELLOW_LED_PIN, 0);
+  if (red.getSingleDebouncedRelease()) digitalWrite(RED_LED_PIN, 0);
+
+  return changed;
+}
+
+void sendCounters() {
+  Serial.print("g = ");
+  Serial.print(greenCounter);
+  Serial.print(", y = ");
+  Serial.print(yellowCounter);
+  Serial.print(", r = ");
+  Serial.print(redCounter);
+  Serial.println();
+
+  ensureConnection();
+  
+}
+
+void reset() {
+  redCounter = 0;
+  greenCounter = 0;
+  yellowCounter = 0;
+}
+
+void handleInput() {
+  if (Serial.available() > 0)
+  {
+    char input = Serial.read();
+    switch (input) {
+      case 'r':
+        flashButtons();
+        delay(500);
+        flashButtons();
+        delay(500);
+        flashButtons();
+        reset();
+        break;
+      default:
+        // ignore
+        break;
+    }
+
+    // read the rest of serial input and discard.
+    while(Serial.available() > 0) {
+      Serial.read();
+    }
+  }
+}
+
+void flashButtons() {
+  digitalWrite(GREEN_LED_PIN, 1);
+  digitalWrite(YELLOW_LED_PIN, 1);
+  digitalWrite(RED_LED_PIN, 1);
+  delay(500);
+  digitalWrite(GREEN_LED_PIN, 0);
+  digitalWrite(YELLOW_LED_PIN, 0);
+  digitalWrite(RED_LED_PIN, 0);
 }
 
