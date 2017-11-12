@@ -5,10 +5,11 @@ A DIY voting device with three buttons - green, yellow and red.
 
 ## Requirements and set-up
 
-### voting-machine-arduino
-
 Pololu Pushbutton library for Arduino - see https://github.com/pololu/pushbutton-arduino
 
+### voting-machine-arduino
+
+No specific requirements.
 
 ### voting-machine-nodemcu
 
