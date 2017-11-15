@@ -21,3 +21,8 @@ The file must contain definition of Wi-Fi SSID and password:
 const char* ssid = "your-ssid";
 const char* password = "your-password";
 ```
+
+
+## Useful links
+
+[Arduino ESP8266 WiFi library reference](https://github.com/esp8266/Arduino/tree/master/doc/esp8266wifi)
