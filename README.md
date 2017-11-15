@@ -16,10 +16,13 @@ No specific requirements.
 Set up Arduino IDE for NodeMCU development. A good tutorial is [here](http://henrysbench.capnfatz.com/henrys-bench/arduino-projects-tips-and-more/arduino-esp8266-lolin-nodemcu-getting-started/)
 
 Before compiling, you must create file `wifi-password.h` in `voting-machine-nodemcu` directory.
-The file must contain definition of Wi-Fi SSID and password:
+The file must contain definition of Wi-Fi SSID and password and Access Point name and password (these will
+be used to allow to configure the voting machine by connecting to the AP and opening browser URL http://192.168.1.1/config):
 ```
 const char* ssid = "your-ssid";
 const char* password = "your-password";
+const char* accessPointSsid = "AP name";
+const char* accessPointPassword = "ap-password";
 ```
 
 
