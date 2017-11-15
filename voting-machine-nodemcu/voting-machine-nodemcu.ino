@@ -1,7 +1,7 @@
 #include <ESP8266WiFi.h>
-#include <WiFiUdp.h>
 #include <Pushbutton.h>
 #include "wifi-password.h"
+#include "time.h"
 
 #define LED_PIN D4   // LoLin has LED at GPIO2 (D4)
 
@@ -22,21 +22,19 @@ const char* targetHost = "192.168.1.100";
 const int port = 65367;
 const char* apiKey = "3db17c25b53248a2be53adafd98763b6";
 
-// Seconds since Jan 1, 1970 at the moment when this board was booted.
-unsigned long boot_time = 0;
 long greenCounter = 0, yellowCounter = 0, redCounter = 0;
 Pushbutton green(GREEN_BUTTON_PIN, PULL_UP_DISABLED), yellow(YELLOW_BUTTON_PIN), red(RED_BUTTON_PIN);
+bool canSendData = false;
 
-void initTime();
 void ledOn();
 void ledOff();
 bool ensureConnection();
 bool isConnected();
-unsigned long sendNTPpacket(WiFiUDP& udp, IPAddress& address);
 bool checkButtons();
 void sendCounters();
 void reset();
 void handleInput();
+bool enableAccessPoint();
 
 
 void setup() {
@@ -58,11 +56,9 @@ void setup() {
   while(isConnected()) {
     delay(100);
   }
-  while (!ensureConnection()) {
-    delay(1000);
-  }
 
-  initTime();
+  canSendData = ensureConnection();
+  if (!canSendData) enableAccessPoint();
 
   digitalWrite(GREEN_LED_PIN, 0);
   digitalWrite(YELLOW_LED_PIN, 0);
@@ -91,6 +87,7 @@ bool ensureConnection() {
   if (isConnected()) {
     return true;
   }
+  WiFi.mode(WIFI_STA);
   ledOn();
   Serial.println();
   Serial.print("Connecting to WiFi...");
@@ -107,71 +104,14 @@ bool ensureConnection() {
   Serial.print(' ');
   Serial.println(WiFi.localIP());
   ledOff();
+
+  initTime();
+
   return true;
 }
 
 bool isConnected() {
   return WiFi.status() == WL_CONNECTED;
-}
-
-void initTime() {
-  unsigned int localPort = 2390;  // local port to listen for UDP packets
-  IPAddress timeServerIP; // time.nist.gov NTP server address
-  const char* ntpServerName = "time.nist.gov";
-  const int NTP_PACKET_SIZE = 48; // NTP time stamp is in the first 48 bytes of the message
-  byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming and outgoing packets
-
-  WiFiUDP udp;
-  udp.begin(localPort);
-  WiFi.hostByName(ntpServerName, timeServerIP); 
-
-  sendNTPpacket(udp, timeServerIP);
-  int cb = udp.parsePacket();
-  while(!cb) {
-    cb = udp.parsePacket();
-  }
-  unsigned long seconds_since_start = millis() / 1000L;
-  udp.read(packetBuffer, NTP_PACKET_SIZE);
-
-  //the timestamp starts at byte 40 of the received packet and is four bytes, or two words, long.
-  // First, esxtract the two words:
-  unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
-  unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
-  // combine the four bytes (two words) into a long integer
-  // this is NTP time (seconds since Jan 1 1900):
-  unsigned long secsSince1900 = highWord << 16 | lowWord;
-  // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
-  const unsigned long seventyYears = 2208988800UL;
-  // subtract seventy years and time since start-up:
-  boot_time = secsSince1900 - seventyYears - seconds_since_start;
-  Serial.print("Unix time at boot time = ");
-  Serial.println(boot_time);
-}
-
-unsigned long sendNTPpacket(WiFiUDP& udp, IPAddress& address)
-{
-  const int NTP_PACKET_SIZE = 48; // NTP time stamp is in the first 48 bytes of the message
-  byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming and outgoing packets
-
-  // set all bytes in the buffer to 0
-  memset(packetBuffer, 0, NTP_PACKET_SIZE);
-  // Initialize values needed to form NTP request
-  // (see URL above for details on the packets)
-  packetBuffer[0] = 0b11100011;   // LI, Version, Mode
-  packetBuffer[1] = 0;     // Stratum, or type of clock
-  packetBuffer[2] = 6;     // Polling Interval
-  packetBuffer[3] = 0xEC;  // Peer Clock Precision
-  // 8 bytes of zero for Root Delay & Root Dispersion
-  packetBuffer[12]  = 49;
-  packetBuffer[13]  = 0x4E;
-  packetBuffer[14]  = 49;
-  packetBuffer[15]  = 52;
-
-  // all NTP fields have been given values, now
-  // you can send a packet requesting a timestamp:
-  udp.beginPacket(address, 123); //NTP requests are to port 123
-  udp.write(packetBuffer, NTP_PACKET_SIZE);
-  udp.endPacket();
 }
 
 bool checkButtons() {
@@ -217,6 +157,9 @@ void handleInput() {
         delay(500);
         flashButtons();
         reset();
+        break;
+      case 'a':
+        enableAccessPoint();
         break;
       default:
         // ignore
@@ -276,7 +219,7 @@ bool sendVote(WiFiClient& client, const char* targetHost, uint8 color) {
 void sendCounters() {
   if (!greenCounter && !yellowCounter && !redCounter) return;
 
-  ensureConnection();
+  if (!canSendData) return;
 
   WiFiClient client;
   if (client.connect(targetHost, port)) {
@@ -303,5 +246,24 @@ void sendCounters() {
     delay(100);
   }
   client.stop();
+}
+
+bool enableAccessPoint() {
+  if (isConnected()) {
+    WiFi.disconnect();
+  }
+  WiFi.mode(WIFI_AP);
+
+  Serial.print("Setting up access point... ");
+  WiFi.softAPConfig(IPAddress(192, 168, 1, 1), IPAddress(192, 168, 1, 1), IPAddress(255, 255, 255, 0));
+  bool result = WiFi.softAP(accessPointSsid, accessPointPassword);
+  if (!result) {
+    Serial.println("failed.");
+    return false;
+  }
+  Serial.println("ok.");
+  Serial.print("AP IP address: ");
+  Serial.println(WiFi.softAPIP());
+  return true;
 }
 
