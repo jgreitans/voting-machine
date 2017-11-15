@@ -2,6 +2,7 @@
 #include <Pushbutton.h>
 #include "wifi-password.h"
 #include "time.h"
+#include "server.h"
 
 #define LED_PIN D4   // LoLin has LED at GPIO2 (D4)
 
@@ -35,6 +36,7 @@ void sendCounters();
 void reset();
 void handleInput();
 bool enableAccessPoint();
+bool isServer();
 
 
 void setup() {
@@ -69,6 +71,7 @@ void loop() {
   handleInput();
   checkButtons();
   sendCounters();
+  if (isServer()) servePages();
   // Wait a bit before scanning again
   delay(10);
 }
@@ -87,6 +90,7 @@ bool ensureConnection() {
   if (isConnected()) {
     return true;
   }
+  server.stop();
   WiFi.mode(WIFI_STA);
   ledOn();
   Serial.println();
@@ -112,6 +116,10 @@ bool ensureConnection() {
 
 bool isConnected() {
   return WiFi.status() == WL_CONNECTED;
+}
+
+bool isServer() {
+  return WiFi.getMode() == WIFI_AP || WiFi.getMode() == WIFI_AP_STA;
 }
 
 bool checkButtons() {
@@ -264,6 +272,7 @@ bool enableAccessPoint() {
   Serial.println("ok.");
   Serial.print("AP IP address: ");
   Serial.println(WiFi.softAPIP());
+  server.begin();
   return true;
 }
 
