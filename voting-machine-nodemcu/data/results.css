@@ -1,0 +1,60 @@
+@font-face {
+  font-family: 'Finger Paint';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Finger Paint Regular'), local('FingerPaint-Regular'), url('FingerPaint-Regular.ttf');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2212, U+2215;
+}
+@font-face {
+  font-family: 'Frijole';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Frijole'), url('Frijole-Regular.ttf');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2212, U+2215;
+}
+
+body {
+    font-family: 'Finger Paint', cursive;
+    font-size: x-large;
+}
+.luxofor {
+    position: fixed;
+    width: 800px;
+    height: 300px;
+    top: 50%;
+    left: 50%;
+    margin: -150px 0 0 -400px;
+}
+.luxofor:after {
+    content: 'Current # of votes since the voting machine was restarted.';
+    color: lightgray;
+}
+.green, .yellow, .red {
+    width: 250px;
+    height: 250px;
+    line-height: 250px;
+    color: black;
+    font-family: 'Frijole', cursive;
+    font-size: 96px;
+    border-radius: 100%;
+    text-align: center;
+}
+.green {
+    background-color: green;
+}
+.yellow {
+    background-color: yellow;
+}
+.red {
+    background-color: red;
+}
+.panel {
+    display: inline-block;
+}
+.value {
+    vertical-align: middle;
+}
+.description {
+    text-align: center;
+    margin-top: 30px;
+}

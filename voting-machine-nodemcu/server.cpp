@@ -10,13 +10,19 @@ extern unsigned long totalGreen;
 extern unsigned long totalYellow;
 extern unsigned long totalRed;
 
+bool serveFile(String path);
 void serveResults();
 void serveGetConfig();
 void servePostConfig();
 void serveNotFound();
 
 void startWebServer() {
-  server.on("/", serveResults);
+  server.on("/", HTTP_GET, []() { serveFile("/results.html"); });
+  server.on("/results", HTTP_GET, []() { serveFile("/results.html"); });
+  server.on("/votes", HTTP_GET, []() {
+    String content = String("{") + "\"green\":" + String(totalGreen) + ", \"yellow\":" + String(totalYellow) + ", \"red\":" + String(totalRed) + "}";
+    server.send(200, "application/json", content);
+  });
 
   // config
   server.on("/config", HTTP_GET, serveGetConfig);
@@ -30,8 +36,7 @@ void startWebServer() {
   server.on("/restart", HTTP_POST, []() {
     String content = String("<!doctype html><html><head><meta http-equiv=\"refresh\" content=\"5;url=") + WiFi.softAPIP() + "/\"/></head><body>&#x1F64F; Restarting. You wait here!</body></html>";
     server.send(200, "text/html", content);
-    delay(100);
-    //
+    delay(250);
     pinMode(0, OUTPUT);
     digitalWrite(0, HIGH);
     pinMode(2, OUTPUT);
@@ -41,19 +46,11 @@ void startWebServer() {
     ESP.restart();
   });
 
-  // votes
-  server.on("/votes", HTTP_GET, []() {
-    String content = String("{") +
-      "\"green\":" + String(totalGreen) + "," +
-      "\"yellow\":" + String(totalYellow) + "," +
-      "\"red\":" + String(totalRed) +
-    "}";
-    server.send(200, "application/json", content);
+  server.onNotFound([]() {
+    if(!serveFile(server.uri())) {
+      serveNotFound();;
+      }
   });
-
-  server.on("/results", HTTP_GET, serveResults);
-
-  server.onNotFound(serveNotFound);
 
   server.begin();
 }
@@ -91,10 +88,24 @@ String getSsids() {
   return ssidList;
 }
 
-void serveGetConfig() {
-  // Content was minified (http://minifycode.com/html-minifier/) and escaped (https://www.freeformatter.com/java-dotnet-escape.html). For original content, see config-page.html in the source directory
-  String configPageContent = "<!doctype html><html><head><meta charset=\"utf-8\"><title>Configure the Voting machine</title><style>.row{margin-bottom:0.5em;margin-top:0.5em}form{padding:1em}fieldset{padding:0.5em;margin-top:0.5em;margin-bottom:0.5em;border:1px solid lightgray}.col-label{display:inline-block;width:7em;text-align:right;margin-right:0.25em}.col-input{display:inline-block;min-width:15em}.col-input>*{width:100%;margin:0}</style></head><body><form action=\"\" method=\"post\"><fieldset><legend>&#x1F4E1; Access point</legend><div class=\"row\"><div class=\"col-label\"> <label for=\"ap-ssid\">AP SSID:</label></div><div class=\"col-input\"> <input id=\"ap-ssid\" name=\"ap-ssid\" type=\"text\" value=\"{ap-ssid}\" required=\"required\" maxlength=\"32\"></input></div></div><div class=\"row\"><div class=\"col-label\"> <label for=\"ap-password\">Password:</label></div><div class=\"col-input\"> <input id=\"ap-password\" name=\"ap-password\" type=\"password\" value=\"{ap-password}\" maxlength=\"32\"></input></div></div></fieldset><fieldset><legend>&#x1f4f6; Wi-Fi</legend><div class=\"row\"><div class=\"col-label\"> <label for=\"wifi-ssid\">SSID:</label></div><div class=\"col-input\"> <select id=\"wifi-ssid\" name=\"wifi-ssid\"> {wifi-ssid-list} </select></div></div><div class=\"row\"><div class=\"col-label\"> <label for=\"wifi-password\">Password:</label></div><div class=\"col-input\"> <input id=\"wifi-password\" name=\"wifi-password\" type=\"password\" value=\"{wifi-password}\" maxlength=\"32\"></input></div></div></fieldset><fieldset><legend>&#x1F517; Other</legend><div class=\"row\"><div class=\"col-label\"></div><div class=\"col-input\"> <input id=\"send-to-endpoint\" name=\"send-to-endpoint\" type=\"checkbox\" value=\"true\" {send-to-endpoint}> </input> <label for=\"send-to-endpoint\">Send data to voting endpoint:</label></div></div><div class=\"row\"><div class=\"col-label\"> <label for=\"endpoint\">Voting endpoint:</label></div><div class=\"col-input\"> <input id=\"endpoint\" name=\"endpoint\" type=\"text\" value=\"{endpoint}\" maxlength=\"128\" placeholder=\"http://my-server:65367/api/votes\"></input></div></div><div class=\"row\"><div class=\"col-label\"> <label for=\"apikey\">API key:</label></div><div class=\"col-input\"> <input id=\"apikey\" name=\"apikey\" type=\"text\" value=\"{apikey}\" maxlength=\"32\" required=\"required\"></input></div></div><div class=\"row\"><div class=\"col-label\"> <label for=\"timeout\">Time-out in ms:</label></div><div class=\"col-input\"> <input id=\"timeout\" name=\"timeout\" type=\"number\" value=\"{timeout}\" required=\"required\"></input></div></div></fieldset> <input type=\"submit\" value=\"&#x2714; Save\"/></form><p> Local IP: {local-ip}</p></body></html>";
+String getFileContents(String path){
+  if(path.endsWith("/")) path += "index.html";
+  if(SPIFFS.exists(path)){
+    File file = SPIFFS.open(path, "r");
+    String data = file.readString();
+    file.close();
+    return data;
+  }
+  return "";
+}
 
+
+void serveGetConfig() {
+  String configPageContent = getFileContents("/config.html");
+  if (configPageContent.length() == 0) {
+    serveNotFound();
+    return;
+  }
   configPageContent.replace("{wifi-ssid-list}", getSsids());
   configPageContent.replace("{ap-ssid}", config.accessPointSsid);
   configPageContent.replace("{ap-password}", config.accessPointPassword);
@@ -104,9 +115,7 @@ void serveGetConfig() {
   configPageContent.replace("{endpoint}", config.targetEndpoint);
   configPageContent.replace("{apikey}", config.apiKey);
   configPageContent.replace("{timeout}", String(config.timeoutInMillis));
-
   configPageContent.replace("{local-ip}", WiFi.localIP().toString());
-  
   server.send(200, "text/html", configPageContent);
 }
 
@@ -159,5 +168,37 @@ void servePostConfig() {
     WiFi.softAPdisconnect();
     WiFi.softAP(config.accessPointSsid.c_str(), config.accessPointPassword.c_str());
   }
+}
+
+String getContentType(String filename){
+  if(server.hasArg("download")) return "application/octet-stream";
+  else if(filename.endsWith(".htm")) return "text/html";
+  else if(filename.endsWith(".html")) return "text/html";
+  else if(filename.endsWith(".css")) return "text/css";
+  else if(filename.endsWith(".js")) return "application/javascript";
+  else if(filename.endsWith(".ttf")) return "application/x-font-truetype";
+  else if(filename.endsWith(".json")) return "application/json";
+  else if(filename.endsWith(".png")) return "image/png";
+  else if(filename.endsWith(".gif")) return "image/gif";
+  else if(filename.endsWith(".jpg")) return "image/jpeg";
+  else if(filename.endsWith(".ico")) return "image/x-icon";
+  else if(filename.endsWith(".gz")) return "image/x-gzip";
+  else if(filename.endsWith(".zip")) return "image/x-zip";
+  return "text/plain";
+}
+
+bool serveFile(String path) {
+  if(path.endsWith("/")) path += "index.html";
+  String contentType = getContentType(path);
+  String pathWithGz = path + ".gz";
+  if(SPIFFS.exists(pathWithGz) || SPIFFS.exists(path)){
+    if(SPIFFS.exists(pathWithGz))
+      path += ".gz";
+    File file = SPIFFS.open(path, "r");
+    size_t sent = server.streamFile(file, contentType);
+    file.close();
+    return true;
+  }
+  return false;
 }
 

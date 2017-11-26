@@ -134,6 +134,12 @@ bool isServer() {
   return WiFi.getMode() == WIFI_AP || WiFi.getMode() == WIFI_AP_STA;
 }
 
+void waitForRelease(Pushbutton& button) {
+  while(button.isPressed()) {
+    delay(10);
+  }
+}
+
 bool checkButtons() {
   bool changed = false;
   if (green.getSingleDebouncedPress()) {
@@ -141,7 +147,7 @@ bool checkButtons() {
     totalGreen++;
     changed = true;
     digitalWrite(GREEN_LED_PIN, 1);
-    green.waitForRelease();
+    waitForRelease(green);
     digitalWrite(GREEN_LED_PIN, 0);
   }
   if (yellow.getSingleDebouncedPress()) {
@@ -149,7 +155,7 @@ bool checkButtons() {
     totalYellow++;
     changed = true;
     digitalWrite(YELLOW_LED_PIN, 1);
-    yellow.waitForRelease();
+    waitForRelease(yellow);
     digitalWrite(YELLOW_LED_PIN, 0);
   }
   if (red.getSingleDebouncedPress()) {
@@ -157,7 +163,7 @@ bool checkButtons() {
     totalRed++;
     changed = true;
     digitalWrite(RED_LED_PIN, 1);
-    red.waitForRelease();
+    waitForRelease(red);
     digitalWrite(RED_LED_PIN, 0);
   }
   return changed;
