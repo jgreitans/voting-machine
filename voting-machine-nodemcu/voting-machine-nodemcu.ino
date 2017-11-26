@@ -1,7 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <Pushbutton.h>
-#include "wifi-password.h"
+#include <ESP8266mDNS.h>
 #include "time.h"
 #include "server.h"
 #include "config.h"
@@ -66,6 +66,9 @@ void setup() {
   if (isConnected()) {
     Serial.print("Local IP: ");  Serial.println(WiFi.localIP());
     initTime();
+    if (!MDNS.begin("vote")) {
+      Serial.println("Could not start mDNS responder - I will not be reachable by DNS name vote.local");
+    }
   } else {
     Serial.println("Not connected to WiFi.");
   }
@@ -207,6 +210,10 @@ void handleInput() {
         break;
       case 't':
         Serial.println(now());
+        break;
+      case 's':
+        config.printTo(Serial);
+        Serial.println();
         break;
       default:
         // ignore

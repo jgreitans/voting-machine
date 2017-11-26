@@ -5,7 +5,7 @@
 #include <ArduinoJson.h>
 #include "FS.h"
 
-#define BUFFER_SIZE JSON_OBJECT_SIZE(7) + 370
+#define BUFFER_SIZE JSON_OBJECT_SIZE(8) + 490
 
 struct Configuration {
   String wifiSsid;
@@ -48,7 +48,7 @@ struct Configuration {
     // use configFile.readString instead.
     configFile.readBytes(buf.get(), size);
 
-    StaticJsonBuffer<BUFFER_SIZE> jsonBuffer;
+    DynamicJsonBuffer jsonBuffer(BUFFER_SIZE);
     JsonObject& json = jsonBuffer.parseObject(buf.get());
     if (!json.success()) {
       return false;
@@ -69,10 +69,13 @@ struct Configuration {
     if (!configFile) {
       return false;
     }
+    printTo(configFile);
+    return true;
+  }
 
-    StaticJsonBuffer<BUFFER_SIZE> jsonBuffer;
+  void printTo(Print& print) {
+    DynamicJsonBuffer jsonBuffer(BUFFER_SIZE);
     JsonObject& json = jsonBuffer.createObject();
-
     json["wifiSsid"] = wifiSsid;
     json["wifiPassword"] = wifiPassword;
     json["accessPointSsid"] = accessPointSsid;
@@ -81,9 +84,7 @@ struct Configuration {
     json["apiKey"] = apiKey;
     json["timeoutInMillis"] = timeoutInMillis;
     json["sendToEndpoint"] = sendToEndpoint;
-
-    json.printTo(configFile);
-    return true;
+    json.printTo(print);
   }
 
 };
