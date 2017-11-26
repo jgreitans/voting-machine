@@ -5,7 +5,7 @@
 // Seconds since Jan 1, 1970 at the moment when this board was booted.
 unsigned long boot_time = 0;
 
-unsigned long sendNTPpacket(WiFiUDP& udp, IPAddress& address)
+bool sendNTPpacket(WiFiUDP& udp, IPAddress& address)
 {
   const int NTP_PACKET_SIZE = 48; // NTP time stamp is in the first 48 bytes of the message
   byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming and outgoing packets
@@ -25,10 +25,11 @@ unsigned long sendNTPpacket(WiFiUDP& udp, IPAddress& address)
   packetBuffer[15]  = 52;
 
   // all NTP fields have been given values, now
-  // you can send a packet requesting a timestamp:
-  udp.beginPacket(address, 123); //NTP requests are to port 123
+  // you can send a packet requesting a timestamp.
+  //NTP requests are to port 123
+  if (!udp.beginPacket(address, 123)) return false;
   udp.write(packetBuffer, NTP_PACKET_SIZE);
-  udp.endPacket();
+  return udp.endPacket();
 }
 
 
@@ -43,11 +44,14 @@ unsigned long getBootTimeFromNtp() {
   udp.begin(localPort);
   WiFi.hostByName(ntpServerName, timeServerIP); 
 
-  sendNTPpacket(udp, timeServerIP);
+  if (!sendNTPpacket(udp, timeServerIP)) return 0;
+
   int cb = udp.parsePacket();
-  while(!cb) {
+  for (int retries = 0; !cb && (retries < 100); retries++) {
     cb = udp.parsePacket();
+    if (!cb) delay(10);
   }
+  if (!cb) return 0;
   unsigned long seconds_since_start = millis() / 1000L;
   udp.read(packetBuffer, NTP_PACKET_SIZE);
 
@@ -65,6 +69,7 @@ unsigned long getBootTimeFromNtp() {
 }
 
 void initTime() {
+  if (boot_time != 0) return;
   boot_time = getBootTimeFromNtp();
 }
 
