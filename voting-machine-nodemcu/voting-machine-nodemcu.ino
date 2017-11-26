@@ -38,6 +38,9 @@ void sendCounters();
 void reset();
 void handleInput();
 
+bool isConnected() {
+  return WiFi.status() == WL_CONNECTED;
+}
 
 void setup() {
   pinMode(LED_PIN, OUTPUT);
@@ -57,10 +60,10 @@ void setup() {
   WiFi.persistent(true);
   WiFi.mode(WIFI_AP_STA);
 
-  if (!WiFi.isConnected()) {
+  if (!isConnected()) {
     connectToWiFi(10);
   }
-  if (WiFi.isConnected()) {
+  if (isConnected()) {
     Serial.print("Local IP: ");  Serial.println(WiFi.localIP());
     initTime();
   } else {
@@ -78,7 +81,9 @@ void setup() {
 void loop() {
   handleInput();
   checkButtons();
-  sendCounters();
+  if (config.sendToEndpoint) {
+    sendCounters();
+  }
   if (isServer()) {
     processWebRequests();
   }
@@ -103,20 +108,20 @@ bool connectToWiFi(int waitTimeInSeconds) {
   }
   ledOn();
 
-  while(WiFi.isConnected()) {
+  while(isConnected()) {
     WiFi.disconnect();
     delay(100);
   }
   Serial.print("WiFi: '"); Serial.print(config.wifiSsid); Serial.print("'");
   WiFi.begin(config.wifiSsid.c_str(), config.wifiPassword.c_str());
-  for (int i = 0; i < (waitTimeInSeconds * 10) && !WiFi.isConnected(); i++) {
+  for (int i = 0; i < (waitTimeInSeconds * 10) && !isConnected(); i++) {
     delay(100);
     Serial.print('.');
   }
 
   ledOff();
   
-  if (!WiFi.isConnected()) {
+  if (!isConnected()) {
     Serial.println(" failed.");
     return false;
   }
@@ -231,11 +236,11 @@ unsigned long lastConnectAttempt = 0;
 void sendCounters() {
   if (!greenCounter && !yellowCounter && !redCounter) return;
 
-  if (!WiFi.isConnected()) {
+  if (!isConnected()) {
     if (now() - lastConnectAttempt > 10) {
       lastConnectAttempt = now();
       connectToWiFi(1);
-      if (!WiFi.isConnected()) return;
+      if (!isConnected()) return;
       initTime();
     } else {
       return;

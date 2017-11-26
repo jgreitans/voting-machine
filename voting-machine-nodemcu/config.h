@@ -15,6 +15,7 @@ struct Configuration {
   String targetEndpoint;
   String apiKey;
   unsigned long timeoutInMillis;
+  bool sendToEndpoint;
 
   Configuration()
   {
@@ -25,6 +26,7 @@ struct Configuration {
     targetEndpoint = "http://192.168.1.100:65367/api/votes";
     apiKey = "3db17c25b53248a2be53adafd98763b6";
     timeoutInMillis = 200;
+    sendToEndpoint = true;
   }
 
   bool load() {
@@ -59,6 +61,7 @@ struct Configuration {
     targetEndpoint = (const char*)json["targetEndpoint"];
     apiKey = (const char*)json["apiKey"];
     timeoutInMillis = json["timeoutInMillis"];
+    sendToEndpoint = json["sendToEndpoint"];
   }
 
   bool save() {
@@ -77,6 +80,7 @@ struct Configuration {
     json["targetEndpoint"] = targetEndpoint;
     json["apiKey"] = apiKey;
     json["timeoutInMillis"] = timeoutInMillis;
+    json["sendToEndpoint"] = sendToEndpoint;
 
     json.printTo(configFile);
     return true;
