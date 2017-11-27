@@ -2,36 +2,8 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <link rel="stylesheet" href="config.css"/>
     <title>Configure the Voting machine</title>
-    <style>
-        .row {
-            margin-bottom: 0.5em;
-            margin-top: 0.5em;
-        }
-        form {
-            padding: 1em;
-        }
-        fieldset {
-            padding: 0.5em;
-            margin-top: 0.5em;
-            margin-bottom: 0.5em;
-            border: 1px solid lightgray;
-        }
-        .col-label {
-            display: inline-block;
-            width: 7em;
-            text-align: right;
-            margin-right: 0.25em;
-        }
-        .col-input {
-            display: inline-block;
-            min-width: 15em;
-        }
-        .col-input > * {
-            width: 100%;
-            margin: 0;
-        }
-    </style>
 </head>
 <body>
     <form action="" method="post">
@@ -73,6 +45,11 @@
                 <div class="col-input">
                     <input id="wifi-password" name="wifi-password" type="password" value="{wifi-password}" maxlength="32"></input>
                 </div>
+            </div>
+            <div class="row">
+                <input id="auto-connect" name="auto-connect" type="checkbox" value="true" {auto-connect}>
+                    <label for="auto-connect">Auto-reconnect to Access point on boot</label>
+                </input>
             </div>
         </fieldset>
         <fieldset>

@@ -35,12 +35,14 @@ bool isServer();
 
 bool checkButtons();
 void sendCounters();
-void reset();
+void reset(bool fullReset);
 void handleInput();
+
 
 bool isConnected() {
   return WiFi.status() == WL_CONNECTED;
 }
+
 
 void setup() {
   pinMode(LED_PIN, OUTPUT);
@@ -49,18 +51,23 @@ void setup() {
   pinMode(RED_LED_PIN, OUTPUT);
   Serial.begin(115200);
 
+  ledOn();
   digitalWrite(GREEN_LED_PIN, 1);
   delay(500);
   digitalWrite(YELLOW_LED_PIN, 1);
   delay(500);
   digitalWrite(RED_LED_PIN, 1);
+  ledOff();
+
+  WiFi.persistent(true);
 
   SPIFFS.begin();
   config.load();
-  WiFi.persistent(true);
-  WiFi.mode(WIFI_AP_STA);
 
-  if (!isConnected()) {
+  if (!config.autoConnectToWifi) {
+    WiFi.mode(WIFI_OFF);
+  }
+  if (config.autoConnectToWifi && !isConnected()) {
     connectToWiFi(10);
   }
   if (isConnected()) {
@@ -81,6 +88,7 @@ void setup() {
   digitalWrite(RED_LED_PIN, 0);
 }
 
+
 void loop() {
   handleInput();
   checkButtons();
@@ -95,17 +103,18 @@ void loop() {
 }
 
 
-
 void ledOn() {
   digitalWrite(LED_PIN, 0);
 }
+
 
 void ledOff() {
   digitalWrite(LED_PIN, 1);
 }
 
+
 bool connectToWiFi(int waitTimeInSeconds) {
-  if (config.wifiSsid.length() < 0) {
+  if (config.wifiSsid.length() < 1) {
     Serial.println("WiFi: not configured");
     return false;
   }
@@ -115,6 +124,13 @@ bool connectToWiFi(int waitTimeInSeconds) {
     WiFi.disconnect();
     delay(100);
   }
+
+  if (WiFi.getMode() == WIFI_OFF) {
+    WiFi.mode(WIFI_STA);
+  } else if (WiFi.getMode() == WIFI_AP) {
+    WiFi.mode(WIFI_AP_STA);
+  }
+
   Serial.print("WiFi: '"); Serial.print(config.wifiSsid); Serial.print("'");
   WiFi.begin(config.wifiSsid.c_str(), config.wifiPassword.c_str());
   for (int i = 0; i < (waitTimeInSeconds * 10) && !isConnected(); i++) {
@@ -133,15 +149,37 @@ bool connectToWiFi(int waitTimeInSeconds) {
   return true;
 }
 
+bool enableAccessPoint() {
+  if (WiFi.getMode() == WIFI_STA) {
+    WiFi.mode(WIFI_AP_STA);
+  }
+  if (WiFi.getMode() == WIFI_OFF) {
+    WiFi.mode(WIFI_AP);
+  }
+
+  Serial.print("AP: ");
+  WiFi.softAPConfig(IPAddress(192, 168, 1, 1), IPAddress(192, 168, 1, 1), IPAddress(255, 255, 255, 0));
+  bool result = WiFi.softAP(config.accessPointSsid.c_str(), config.accessPointPassword.c_str());
+  if (!result) {
+    Serial.println("failed.");
+    return false;
+  }
+  Serial.println(WiFi.softAPIP());
+  return true;
+}
+
+
 bool isServer() {
   return WiFi.getMode() == WIFI_AP || WiFi.getMode() == WIFI_AP_STA;
 }
+
 
 void waitForRelease(Pushbutton& button) {
   while(button.isPressed()) {
     delay(10);
   }
 }
+
 
 bool checkButtons() {
   bool changed = false;
@@ -172,60 +210,18 @@ bool checkButtons() {
   return changed;
 }
 
-void reset() {
+
+void reset(bool fullReset) {
   redCounter = 0;
   greenCounter = 0;
   yellowCounter = 0;
-}
-
-void handleInput() {
-  if (Serial.available() > 0)
-  {
-    char input = Serial.read();
-    switch (input) {
-      case 'c':
-        Serial.print("green: "); Serial.println(greenCounter);
-        Serial.print("yellow: "); Serial.println(yellowCounter);
-        Serial.print("red: "); Serial.println(redCounter);
-        break;
-      case 'r':
-        flashButtons();
-        delay(250);
-        flashButtons();
-        delay(250);
-        flashButtons();
-        reset();
-        break;
-      case 'a':
-        enableAccessPoint();
-        break;
-      case 'A':
-        WiFi.softAPdisconnect(true);
-        break;
-      case 'w':
-        connectToWiFi(5);
-        break;
-      case 'W':
-        WiFi.disconnect();
-        break;
-      case 't':
-        Serial.println(now());
-        break;
-      case 's':
-        config.printTo(Serial);
-        Serial.println();
-        break;
-      default:
-        // ignore
-        break;
-    }
-
-    // read the rest of serial input and discard.
-    while(Serial.available() > 0) {
-      Serial.read();
-    }
+  if (fullReset) {
+    totalGreen = 0;
+    totalYellow = 0;
+    totalRed = 0;
   }
 }
+
 
 void flashButtons() {
   digitalWrite(GREEN_LED_PIN, 1);
@@ -243,6 +239,7 @@ bool sendVote(HTTPClient& client, uint8 color) {
   int statusCode = client.POST(data);
   return (statusCode >= 200 && statusCode < 300);
 }
+
 
 unsigned long lastConnectAttempt = 0;
 
@@ -295,15 +292,69 @@ void sendCounters() {
   client.end();
 }
 
-bool enableAccessPoint() {
-  Serial.print("AP: ");
-  WiFi.softAPConfig(IPAddress(192, 168, 1, 1), IPAddress(192, 168, 1, 1), IPAddress(255, 255, 255, 0));
-  bool result = WiFi.softAP(config.accessPointSsid.c_str(), config.accessPointPassword.c_str());
-  if (!result) {
-    Serial.println("failed.");
-    return false;
+
+void handleInput() {
+  if (Serial.available() > 0)
+  {
+    char input = Serial.read();
+    switch (input) {
+      case 'a':
+        enableAccessPoint();
+        break;
+      case 'c':
+        Serial.print("green: "); Serial.println(greenCounter);
+        Serial.print("yellow: "); Serial.println(yellowCounter);
+        Serial.print("red: "); Serial.println(redCounter);
+        break;
+      case 'd':
+        WiFi.printDiag(Serial);
+        Serial.setDebugOutput(true);
+        break;
+      case 'D':
+        Serial.setDebugOutput(false);
+        WiFi.printDiag(Serial);
+        break;
+      case 'A':
+        WiFi.softAPdisconnect(true);
+        break;
+      case 'r':
+        flashButtons();
+        delay(250);
+        flashButtons();
+        delay(250);
+        flashButtons();
+        reset(false);
+        break;
+      case 'R':
+        flashButtons();
+        delay(250);
+        flashButtons();
+        delay(250);
+        flashButtons();
+        reset(true);
+        break;
+      case 's':
+        config.printTo(Serial);
+        Serial.println();
+        break;
+      case 't':
+        Serial.println(now());
+        break;
+      case 'w':
+        connectToWiFi(5);
+        break;
+      case 'W':
+        WiFi.disconnect();
+        break;
+      default:
+        // ignore
+        break;
+    }
+
+    // read the rest of serial input and discard.
+    while(Serial.available() > 0) {
+      Serial.read();
+    }
   }
-  Serial.println(WiFi.softAPIP());
-  return true;
 }
 

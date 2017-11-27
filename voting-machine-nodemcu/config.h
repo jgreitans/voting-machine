@@ -10,6 +10,7 @@
 struct Configuration {
   String wifiSsid;
   String wifiPassword;
+  bool autoConnectToWifi;
   String accessPointSsid;
   String accessPointPassword;
   String targetEndpoint;
@@ -21,6 +22,7 @@ struct Configuration {
   {
     wifiSsid = "";
     wifiPassword = "";
+    autoConnectToWifi = false;
     accessPointSsid = "Votin' gadget";
     accessPointPassword = "thatwaseasy";
     targetEndpoint = "http://192.168.1.100:65367/api/votes";
@@ -56,6 +58,7 @@ struct Configuration {
 
     wifiSsid = (const char*)json["wifiSsid"];
     wifiPassword = (const char*)json["wifiPassword"];
+    autoConnectToWifi = json["autoConnectToWifi"];
     accessPointSsid = (const char*)json["accessPointSsid"];
     accessPointPassword = (const char*)json["accessPointPassword"];
     targetEndpoint = (const char*)json["targetEndpoint"];
@@ -78,6 +81,7 @@ struct Configuration {
     JsonObject& json = jsonBuffer.createObject();
     json["wifiSsid"] = wifiSsid;
     json["wifiPassword"] = wifiPassword;
+    json["autoConnectToWifi"] = autoConnectToWifi;
     json["accessPointSsid"] = accessPointSsid;
     json["accessPointPassword"] = accessPointPassword;
     json["targetEndpoint"] = targetEndpoint;

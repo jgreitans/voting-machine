@@ -11,7 +11,6 @@ extern unsigned long totalYellow;
 extern unsigned long totalRed;
 
 bool serveFile(String path);
-void serveResults();
 void serveGetConfig();
 void servePostConfig();
 void serveNotFound();
@@ -67,11 +66,6 @@ void serveNotFound() {
   server.send(404, "text/html", "<!doctype html><html><body><h1>Page not found &#x1f61e;</h1></body></html>");
 }
 
-void serveResults() {
-  String contents = "<!doctype html><html><head><link href=\"https://fonts.googleapis.com/css?family=Frijole|Piedra|Finger+Paint&amp;subset=latin-ext\" rel=\"stylesheet\"><style>body{font-family:'Finger Paint',cursive;font-size:x-large}.luxofor{position:fixed;width:800px;height:300px;top:50%;left:50%;margin:-150px 0 0 -400px}.green,.yellow,.red{width:250px;height:250px;line-height:250px;color:black;font-family:'Frijole',cursive;font-size:96px;border-radius:100%;text-align:center}.green{background-color:green}.yellow{background-color:yellow}.red{background-color:red}.panel{display:inline-block}.value{vertical-align:middle}.description{text-align:center;margin-top:50px}</style></head><body><div class=\"luxofor\"><div class=\"green panel\"> <span id=\"green\" class=\"value\">000</span></div><div class=\"yellow panel\"> <span id=\"yellow\" class=\"value\">000</span></div><div class=\"red panel\"> <span id=\"red\" class=\"value\">000</span></div></div><p class=\"description\">This is the current number of votes since the voting machine was restarted.</p> <script type=\"text/javascript\">function processResponse(){var json=JSON.parse(this.responseText);document.getElementById(\"green\").innerHTML=json.green;document.getElementById(\"yellow\").innerHTML=json.yellow;document.getElementById(\"red\").innerHTML=json.red;} function processError(){console.error(\"Could not get votes.\");document.getElementById(\"green\").innerHTML=\"-1\";document.getElementById(\"yellow\").innerHTML=\"-1\";document.getElementById(\"red\").innerHTML=\"-1\";} function sendRequest(){var xhr=new XMLHttpRequest();xhr.addEventListener(\"load\",processResponse);xhr.addEventListener(\"error\",processError);xhr.open(\"GET\",\"/votes\",true);xhr.send();} setInterval(sendRequest,5000);</script> </body></html>";
-  server.send(200, "text/html", contents);
-}
-
 String getSsids() {
   String ssidList = "";
   int n = WiFi.scanNetworks();
@@ -115,7 +109,8 @@ void serveGetConfig() {
   configPageContent.replace("{endpoint}", config.targetEndpoint);
   configPageContent.replace("{apikey}", config.apiKey);
   configPageContent.replace("{timeout}", String(config.timeoutInMillis));
-  configPageContent.replace("{local-ip}", WiFi.localIP().toString());
+  configPageContent.replace("{local-ip}", WiFi.isConnected() ? WiFi.localIP().toString() : "<span class=\"warning\">not connected</span>");
+  configPageContent.replace("{auto-connect}", config.autoConnectToWifi ? "checked" : "");
   server.send(200, "text/html", configPageContent);
 }
 
@@ -158,7 +153,7 @@ void servePostConfig() {
   String content = "<!doctype html><html><body><p>Configuration was updated &#x1F44C;<p><p><a href=\"/config\">Back</a></p></body></html>";
   server.send(200, "text/html", content);
 
-  if (reconnect) {
+  if (WiFi.isConnected() && reconnect) {
     while(WiFi.isConnected()) {
       WiFi.disconnect();
       delay(1);
