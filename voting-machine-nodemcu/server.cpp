@@ -9,6 +9,7 @@ extern Configuration config;
 extern unsigned long totalGreen;
 extern unsigned long totalYellow;
 extern unsigned long totalRed;
+extern void reset(bool fullReset);
 
 bool serveFile(String path);
 void serveGetConfig();
@@ -45,9 +46,16 @@ void startWebServer() {
     ESP.restart();
   });
 
+  server.on("/reset", HTTP_GET, []() { serveFile("/reset.html"); });
+  server.on("/reset", HTTP_POST, []() {
+    reset(true);
+    server.sendHeader("Location", "/");
+    server.send(303);
+  });
+
   server.onNotFound([]() {
     if(!serveFile(server.uri())) {
-      serveNotFound();;
+      serveNotFound();
       }
   });
 
